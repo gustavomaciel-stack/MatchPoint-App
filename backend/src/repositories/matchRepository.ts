@@ -12,8 +12,14 @@ export const matchRepository = {
     });
   },
 
-  findAll: () => {
+  findAll: (userId?: string) => {
     return prisma.match.findMany({
+      where: userId ? {
+        OR: [
+          { organizerId: userId },
+          { participations: { some: { userId, status: 'CONFIRMADA' } } },
+        ],
+      } : undefined,
       include: {
         organizer: {
           select: { id: true, name: true, email: true },

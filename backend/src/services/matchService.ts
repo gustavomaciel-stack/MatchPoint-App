@@ -3,6 +3,8 @@ import { matchRepository } from "../repositories/matchRepository.js";
 import { participationRepository } from "../repositories/participationRepository.js";
 import { userRepository } from "../repositories/userRepository.js";
 
+import { isUpcomingMatch } from './matchSchedule.js';
+
 export type MatchInput = {
   sport: string;
   location: string;
@@ -41,8 +43,13 @@ const parseMatchInput = (data: MatchInput) => {
     throw new AppError("A quantidade de vagas deve ser maior que zero.", 400);
   }
 
-  if (Number.isNaN(parsedDate.getTime())) {
+  if (typeof date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(date)
+    || Number.isNaN(+parsedDate) || parsedDate.toISOString().slice(0, 10) !== date) {
     throw new AppError("A data da partida é inválida.", 400);
+  }
+
+  if (!isUpcomingMatch({ date: parsedDate, time })) {
+    throw new AppError("Informe uma data e hora futura válida.", 400);
   }
 
   return {
@@ -70,9 +77,10 @@ export const matchService = {
     return matchRepository.create(input);
   },
 
-  list: async () => {
-    const matches = await matchRepository.findAll();
-    return matches.map((match) => ({
+  list: async (userId?: string) => {
+    const matches = await matchRepository.findAll(userId);
+    const now = Date.now();
+    return matches.filter((match) => isUpcomingMatch(match, now)).map((match) => ({
       id: match.id,
       sport: match.sport,
       location: match.location,
@@ -93,8 +101,8 @@ export const matchService = {
 
   getById: async (id: string) => {
     const match = await matchRepository.findById(id);
-    if (!match) {
-      throw new AppError("Partida não encontrada.", 404);
+    if (!match || !isUpcomingMatch(match)) {
+      throw new AppError("Partida indisponível.", 404);
     }
 
     const participants = await participationRepository.findConfirmedByMatch(id);

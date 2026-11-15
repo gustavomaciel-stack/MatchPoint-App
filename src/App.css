@@ -418,3 +418,48 @@ input:hover, select:hover, textarea:hover { border-color: #9dbeb5; }
   .auth-card { padding: 26px; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+.team-section { display: grid; gap: 0.85rem; }
+.team-section h2, .team-section h3, .team-section p { margin: 0; }
+.team-actions { display: flex; flex-wrap: wrap; align-items: end; gap: 0.65rem; }
+.team-card {
+  display: grid;
+  gap: 0.7rem;
+  padding: 1rem;
+  border: 1px solid #64756866;
+  border-radius: 0.9rem;
+}
+.team-card > button { justify-self: start; }
+.team-card label { display: grid; gap: 0.25rem; }
+.team-form { max-width: 36rem; }
+.team-section label.team-check { display: flex; align-items: center; gap: 0.45rem; }
+.team-section .team-check input { width: auto; }
+
+.view-filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 22px; }
+.view-filters button {
+  background: #e8efef; color: #254746; border: 1px solid transparent;
+  padding: 9px 14px; border-radius: 999px; font: inherit; font-weight: 650; cursor: pointer;
+}
+.view-filters button[aria-pressed="true"] { background: #176858; color: white; }
+.section-heading h3 { margin: 0; }
+.agenda-list { display: grid; gap: 10px; }
+.agenda-row {
+  display: grid; grid-template-columns: 86px minmax(0, 1fr) auto auto;
+  align-items: center; gap: 18px; padding: 16px;
+  background: #fff; border: 1px solid #dce7e6; border-radius: 14px;
+}
+.agenda-row time { display: grid; gap: 3px; color: #155c4f; }
+.agenda-row h3, .agenda-row p { margin: 0; overflow-wrap: anywhere; }
+.agenda-status { color: #175447; background: #e5f1ec; border-radius: 999px; padding: 5px 10px; font-size: .85rem; }
+.team-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 235px), 1fr)); gap: 12px; }
+.account-menu { position: relative; color: #dcebe8; }
+.account-menu summary { padding: 10px; cursor: pointer; }
+.account-menu > div {
+  position: absolute; z-index: 2; right: 0; display: grid; min-width: 120px;
+  background: #153635; border: 1px solid #ffffff30; padding: 6px; border-radius: 10px;
+}
+@media (max-width: 640px) {
+  .agenda-row { grid-template-columns: 65px minmax(0, 1fr); gap: 10px; }
+  .agenda-status { grid-column: 2; justify-self: start; }
+  .agenda-row button { grid-column: 2; justify-self: start; }
+}

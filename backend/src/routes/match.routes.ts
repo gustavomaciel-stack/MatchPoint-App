@@ -8,6 +8,7 @@ const router = Router();
 
 router.post('/matches', authMiddleware, matchController.create);
 router.get('/matches', matchController.list);
+router.get('/matches/mine', authMiddleware, matchController.mine);
 router.get('/matches/:id', matchController.getById);
 router.put('/matches/:id', authMiddleware, matchController.update);
 router.patch('/matches/:id/cancel', authMiddleware, matchController.cancel);

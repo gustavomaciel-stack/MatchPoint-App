@@ -3,11 +3,13 @@ import { matchRepository } from '../repositories/matchRepository.js';
 import { participationRepository } from '../repositories/participationRepository.js';
 import { userRepository } from '../repositories/userRepository.js';
 
+import { isUpcomingMatch } from './matchSchedule.js';
+
 export const participationService = {
   join: async (matchId: string, userId: string) => {
     const match = await matchRepository.findById(matchId);
     if (!match) throw new AppError('Partida não encontrada.', 404);
-    if (match.status !== 'ABERTA') {
+    if (!isUpcomingMatch(match) || match.status !== 'ABERTA') {
       throw new AppError('A partida não está aberta para participação.', 400);
     }
 
@@ -55,7 +57,7 @@ export const participationService = {
 
   listByMatch: async (matchId: string) => {
     const match = await matchRepository.findById(matchId);
-    if (!match) throw new AppError('Partida não encontrada.', 404);
+    if (!match || !isUpcomingMatch(match)) throw new AppError('Partida indisponível.', 404);
 
     const participants = await participationRepository.findConfirmedByMatch(matchId);
     return participants.map((participation) => ({

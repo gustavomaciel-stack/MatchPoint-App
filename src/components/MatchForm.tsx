@@ -1,3 +1,4 @@
+import { currentBrasiliaMinute, isFutureBrasiliaTime } from '../data/matchSchedule';
 import { SPORTS } from '../data/sports';
 import { useState, type FormEvent } from 'react';
 import { createMatch, updateMatch, type Match } from '../services/api';
@@ -19,6 +20,7 @@ export function MatchForm({ mode, initialMatch, onSuccess, onCancel }: Props) {
     event.preventDefault();
     if (!currentUserId) { setError('Selecione um usuário atual antes de continuar.'); return; }
     if (!form.sport.trim()) { setError('Escolha um esporte para continuar.'); return; }
+    if (!isFutureBrasiliaTime(`${form.date}T${form.time}`)) { setError('Informe uma data e hora futura válida.'); return; }
     const amount = isFree ? 0 : Math.round(Number(price.replace(',', '.')) * 100);
     if (!isFree && (!Number.isFinite(amount) || amount <= 0 || amount > 100000000)) {
       setError('Informe um valor por pessoa maior que zero ou selecione Grátis.'); return;
@@ -37,7 +39,7 @@ export function MatchForm({ mode, initialMatch, onSuccess, onCancel }: Props) {
     <h3 className="form-divider">02 · Local e horário</h3>
     <label>Local<input required value={form.location} onChange={(event) => setForm({ ...form, location: event.target.value })} /></label>
     <label>Endereço (opcional)<input maxLength={300} placeholder="Rua, número, bairro, cidade e estado" value={form.address} onChange={(event) => setForm({ ...form, address: event.target.value })} /></label>
-    <label>Data<input required type="date" value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} /></label>
+    <label>Data<input required type="date" min={currentBrasiliaMinute().slice(0, 10)} value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} /></label>
     <label>Horário<input required type="time" value={form.time} onChange={(event) => setForm({ ...form, time: event.target.value })} /></label>
     <label>Vagas<input required min="1" type="number" value={form.vacancies} onChange={(event) => setForm({ ...form, vacancies: event.target.value })} /></label>
     <h3 className="form-divider">03 · Combine os detalhes</h3>

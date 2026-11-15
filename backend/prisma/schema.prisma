@@ -33,6 +33,7 @@ model User {
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
   matches      Match[]
+  teams        Team[]
   participations Participation[]
 }
 
@@ -68,4 +69,31 @@ model Participation {
   @@unique([matchId, userId])
   @@index([matchId])
   @@index([userId])
+}
+
+model Team {
+  id          String @id @default(cuid())
+  name        String
+  sport       String
+  memberCount Int
+  ownerId     String
+  owner       User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  hosted      TeamMatch[] @relation("Host")
+  accepted    TeamMatch[] @relation("Opponent")
+
+  @@unique([ownerId, sport, name])
+}
+
+model TeamMatch {
+  id             String @id @default(cuid())
+  hostId         String
+  opponentId     String?
+  host           Team @relation("Host", fields: [hostId], references: [id], onDelete: Cascade)
+  opponent       Team? @relation("Opponent", fields: [opponentId], references: [id], onDelete: Cascade)
+  location       String
+  address        String?
+  startsAt       DateTime
+  playersPerSide Int
+  outdoor        Boolean @default(false)
+  cancelled      Boolean @default(false)
 }

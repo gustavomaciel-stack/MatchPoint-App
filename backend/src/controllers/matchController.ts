@@ -28,6 +28,13 @@ export const matchController = {
       next(err);
     }
   },
+  mine: async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      res.json(await matchService.list(getAuthenticatedUserId(req)));
+    } catch (err) {
+      next(err);
+    }
+  },
   getById: async (req: Request, res: Response, next: NextFunction) => {
     try {
       res.status(200).json(await matchService.getById(req.params.id));

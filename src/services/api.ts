@@ -137,6 +137,10 @@ export function getUser(id: string) {
   return request<User>(`/users/${id}`);
 }
 
+export function listMyMatches() {
+  return request<Match[]>('/matches/mine');
+}
+
 export function listMatches() {
   return request<Match[]>("/matches");
 }
@@ -198,3 +202,34 @@ export function leaveMatch(id: string, userId: string) {
 export function getParticipants(id: string) {
   return request<Participant[]>(`/matches/${id}/participants`);
 }
+export type Team = {
+  id: string;
+  name: string;
+  sport: string;
+  memberCount: number;
+  ownerId: string;
+};
+
+export type TeamMatch = {
+  id: string;
+  host: Team;
+  opponent: Team | null;
+  location: string;
+  address: string | null;
+  startsAt: string;
+  playersPerSide: number;
+  outdoor: boolean;
+  cancelled: boolean;
+};
+
+export const teamsApi = {
+  mine: () => request<Team[]>('/teams'),
+  matches: () => request<TeamMatch[]>('/team-matches'),
+  create: (input: Pick<Team, 'name' | 'sport' | 'memberCount'>) =>
+    request<Team>('/teams', { method: 'POST', body: JSON.stringify(input) }),
+  publish: (input: { teamId: string; location: string; address: string; startsAt: string; playersPerSide: number; outdoor: boolean }) =>
+    request<TeamMatch>('/team-matches', { method: 'POST', body: JSON.stringify(input) }),
+  accept: (id: string, teamId: string) =>
+    request(`/team-matches/${id}/accept`, { method: 'POST', body: JSON.stringify({ teamId }) }),
+  cancel: (id: string) => request(`/team-matches/${id}/cancel`, { method: 'PATCH' }),
+};
