@@ -176,7 +176,6 @@ select, input {
 .quick-form input { max-width: 190px; }
 .quick-form .error { flex-basis: 100%; }
 
-/* Criação e edição de partida */
 .form-section {
   box-sizing: border-box;
   width: min(100%, 700px);
@@ -343,7 +342,6 @@ select, input {
 .match-filters input, .match-form select, .match-form textarea { width: 100%; box-sizing: border-box; padding: 12px; border: 1px solid #cbd5e1; border-radius: 10px; font: inherit; background: white; color: #172033; }
 .match-form textarea { resize: vertical; }
 
-/* Identidade visual MatchPoint */
 .app-shell { background: radial-gradient(ellipse at 100% 0, #dcefe9 0, transparent 38%), #f4f6fa; }
 .topbar { background: #102e30; padding-top: 22px; padding-bottom: 22px; text-align: left; border-bottom: 3px solid #b5ed7b; }
 .topbar h1 { font-size: 28px; letter-spacing: -1.2px; display: flex; align-items: center; gap: 8px; }
@@ -464,7 +462,6 @@ input:hover, select:hover, textarea:hover { border-color: #9dbeb5; }
   .agenda-row button { grid-column: 2; justify-self: start; }
 }
 
-/* Location picker and map */
 .location-picker { display: grid; gap: 12px; margin: 0; padding: 16px; border: 1px solid #cbd5e1; border-radius: 12px; min-width: 0; }
 .location-picker legend { padding: 0 6px; font: 700 14px Arial, sans-serif; }
 .location-picker label { display: grid; gap: 6px; flex: 1 1 200px; text-align: left; font: 700 14px Arial, sans-serif; }

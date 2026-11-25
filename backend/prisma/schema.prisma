@@ -44,7 +44,7 @@ model Match {
   cep           String?
   latitude      Float?
   longitude     Float?
-  pricePerPerson Int @default(0) // centavos
+  pricePerPerson Int @default(0)
   notes         String?
   location      String
   date          DateTime

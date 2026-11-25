@@ -40,7 +40,6 @@ export function LocationPicker({ value, onChange, addressRequired = false }: Pro
     const street = [found.street, found.district].filter(Boolean).join(', ');
     const address = [street, `${found.city} - ${found.state}`].filter(Boolean).join(', ');
     const next = { ...value, address };
-    // CEPs of whole cities have no street; then we can only center on the city.
     placePin(await geocode([found.street, found.city, found.state].filter(Boolean).join(', ')), next);
     if (found.street) setMessage('Endereço preenchido pelo CEP. Acrescente o número e confira o pino no mapa.');
   });

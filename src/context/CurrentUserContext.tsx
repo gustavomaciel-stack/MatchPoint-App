@@ -91,7 +91,6 @@ export function CurrentUserProvider({ children }: { children: ReactNode }) {
       });
     }
 
-    // O login já retorna a identidade; não depende da listagem de usuários.
   };
 
   const logoutUser = () => {

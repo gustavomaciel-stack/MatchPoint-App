@@ -1,9 +1,3 @@
-// Free public services, no API key needed:
-// - ViaCEP turns a CEP into street, district, city and state.
-// - Nominatim (OpenStreetMap) turns an address into coordinates.
-//   Its usage policy allows at most one request per second, so we only
-//   search when the user clicks a button, never on every keystroke.
-
 export type CepResult = { street: string; district: string; city: string; state: string };
 export type Coordinates = { latitude: number; longitude: number };
 

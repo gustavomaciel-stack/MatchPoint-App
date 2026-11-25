@@ -6,13 +6,11 @@ import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 import type { Coordinates } from '../services/geo';
 
-// Leaflet's default icon paths break under Vite, so the images are imported explicitly.
 const icon = L.icon({
   iconUrl: markerIcon, iconRetinaUrl: markerIcon2x, shadowUrl: markerShadow,
   iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41],
 });
 
-// Novo Hamburgo, where the first version of MatchPoint is used.
 const DEFAULT_CENTER: L.LatLngTuple = [-29.68, -51.13];
 
 type Props = {
@@ -60,7 +58,6 @@ export function LocationMap({ position, onPick, label = 'Mapa do local da partid
     } else {
       marker.current.setLatLng(latLng);
     }
-    // Zoom in on new results, but don't jump around while the user adjusts the pin nearby.
     if (!instance.getBounds().contains(latLng) || instance.getZoom() < 15) {
       instance.setView(latLng, 17);
     }

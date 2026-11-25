@@ -2,8 +2,6 @@ import { AppError } from '../errors/AppError.js';
 
 export type Place = { cep: string | null; latitude: number | null; longitude: number | null };
 
-// Validates the optional CEP and map position sent with a match or confrontation.
-// The coordinates come as a pair: either both are valid numbers or both are absent.
 export function parsePlace(body: { cep?: unknown; latitude?: unknown; longitude?: unknown }): Place {
   let cep: string | null = null;
   if (body.cep != null && body.cep !== '') {

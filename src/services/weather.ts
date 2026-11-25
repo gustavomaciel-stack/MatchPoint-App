@@ -1,4 +1,3 @@
-// Uses the confrontation's map position; older records without one fall back to Novo Hamburgo.
 export async function getForecast(startsAt: string, position?: { latitude: number; longitude: number } | null) {
   const localHour = new Date(Date.parse(startsAt) - 3 * 3600000).toISOString().slice(0, 13) + ':00';
   const date = localHour.slice(0, 10);
