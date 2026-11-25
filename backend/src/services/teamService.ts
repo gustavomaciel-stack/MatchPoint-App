@@ -2,6 +2,7 @@ import { parseBrasiliaStart } from './matchSchedule.js';
 import { Prisma } from '@prisma/client';
 import { AppError } from '../errors/AppError.js';
 import { teamRepository } from '../repositories/teamRepository.js';
+import { parsePlace } from './place.js';
 
 function requiredText(value: unknown, label: string, max: number) {
   if (typeof value !== 'string' || !value.trim() || value.trim().length > max) {
@@ -54,6 +55,7 @@ export const teamService = {
       hostId: host.id, playersPerSide, startsAt,
       location: requiredText(body.location, 'Local', 300),
       address: requiredText(body.address, 'Endereço', 300), outdoor: body.outdoor === true,
+      ...parsePlace(body),
     });
   },
   async accept(ownerId: string, id: string, teamId: unknown) {

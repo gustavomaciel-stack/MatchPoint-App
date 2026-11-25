@@ -38,6 +38,9 @@ export const matchRepository = {
     sport: string;
     location: string;
     address?: string | null;
+    cep?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
   pricePerPerson?: number;
   notes?: string | null;
     date: Date;
@@ -52,6 +55,9 @@ export const matchRepository = {
     sport: string;
     location: string;
     address?: string | null;
+    cep?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
   pricePerPerson?: number;
   notes?: string | null;
     date: Date;

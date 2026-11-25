@@ -3,15 +3,18 @@ import { SPORTS } from '../data/sports';
 import { useState, type FormEvent } from 'react';
 import { createMatch, updateMatch, type Match } from '../services/api';
 import { useCurrentUser } from '../context/CurrentUserContext';
+import { LocationPicker, hasPin, type PlaceValue } from './LocationPicker';
+import { formatCep } from '../services/geo';
 
 type Props = { mode: 'create' | 'edit'; initialMatch?: Match; onSuccess: (id: string) => void; onCancel: () => void };
 
 export function MatchForm({ mode, initialMatch, onSuccess, onCancel }: Props) {
   const { currentUserId } = useCurrentUser();
-  const [form, setForm] = useState({ sport: initialMatch?.sport ?? '', location: initialMatch?.location ?? '', address: initialMatch?.address ?? '', date: initialMatch?.date.slice(0, 10) ?? '', time: initialMatch?.time ?? '', vacancies: String(initialMatch?.vacancies ?? 1) });
+  const [form, setForm] = useState({ sport: initialMatch?.sport ?? '', location: initialMatch?.location ?? '', date: initialMatch?.date.slice(0, 10) ?? '', time: initialMatch?.time ?? '', vacancies: String(initialMatch?.vacancies ?? 1) });
   const [selectedSport, setSelectedSport] = useState(initialMatch?.sport ? (SPORTS.some((item) => item.name === initialMatch.sport) ? initialMatch.sport : 'other') : '');
   const [isFree, setIsFree] = useState(!(initialMatch?.pricePerPerson));
   const [price, setPrice] = useState(initialMatch?.pricePerPerson ? (initialMatch.pricePerPerson / 100).toFixed(2) : '');
+  const [place, setPlace] = useState<PlaceValue>({ address: initialMatch?.address ?? '', cep: formatCep(initialMatch?.cep ?? ''), latitude: initialMatch?.latitude ?? null, longitude: initialMatch?.longitude ?? null });
   const [notes, setNotes] = useState(initialMatch?.notes ?? '');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -20,6 +23,7 @@ export function MatchForm({ mode, initialMatch, onSuccess, onCancel }: Props) {
     event.preventDefault();
     if (!currentUserId) { setError('Selecione um usuário atual antes de continuar.'); return; }
     if (!form.sport.trim()) { setError('Escolha um esporte para continuar.'); return; }
+    if (!hasPin(place)) { setError('Marque o local da partida no mapa para continuar.'); return; }
     if (!isFutureBrasiliaTime(`${form.date}T${form.time}`)) { setError('Informe uma data e hora futura válida.'); return; }
     const amount = isFree ? 0 : Math.round(Number(price.replace(',', '.')) * 100);
     if (!isFree && (!Number.isFinite(amount) || amount <= 0 || amount > 100000000)) {
@@ -27,7 +31,7 @@ export function MatchForm({ mode, initialMatch, onSuccess, onCancel }: Props) {
     }
     setLoading(true); setError('');
     try {
-      const data = { ...form, pricePerPerson: amount, notes, vacancies: Number(form.vacancies), organizerId: currentUserId };
+      const data = { ...form, ...place, cep: place.cep || null, pricePerPerson: amount, notes, vacancies: Number(form.vacancies), organizerId: currentUserId };
       const match = mode === 'create' ? await createMatch(data) : await updateMatch(initialMatch!.id, data);
       onSuccess(match.id);
     } catch (err) { setError(err instanceof Error ? err.message : 'Erro ao salvar partida.'); } finally { setLoading(false); }
@@ -37,8 +41,8 @@ export function MatchForm({ mode, initialMatch, onSuccess, onCancel }: Props) {
     <fieldset className="sport-picker"><legend>01 · Escolha seu esporte</legend><p className="muted">Qual vai ser o próximo jogo?</p><div className="sport-options">{SPORTS.map((sport) => <button key={sport.name} type="button" className={`sport-option ${selectedSport === sport.name ? 'selected' : ''}`} aria-pressed={selectedSport === sport.name} onClick={() => { setSelectedSport(sport.name); setForm({ ...form, sport: sport.name }); }}><span aria-hidden="true">{sport.icon}</span>{sport.name}</button>)}<button type="button" className={`sport-option ${selectedSport === 'other' ? 'selected' : ''}`} aria-pressed={selectedSport === 'other'} onClick={() => { setSelectedSport('other'); setForm({ ...form, sport: '' }); }}><span aria-hidden="true">🏅</span>Outro esporte</button></div></fieldset>
     {selectedSport === 'other' && <label>Nome do esporte<input required maxLength={80} placeholder="Qual esporte você quer organizar?" value={form.sport} onChange={(event) => setForm({ ...form, sport: event.target.value })} /></label>}
     <h3 className="form-divider">02 · Local e horário</h3>
-    <label>Local<input required value={form.location} onChange={(event) => setForm({ ...form, location: event.target.value })} /></label>
-    <label>Endereço (opcional)<input maxLength={300} placeholder="Rua, número, bairro, cidade e estado" value={form.address} onChange={(event) => setForm({ ...form, address: event.target.value })} /></label>
+    <label>Nome do local<input required maxLength={300} placeholder="Ex.: Quadra do Parcão" value={form.location} onChange={(event) => setForm({ ...form, location: event.target.value })} /></label>
+    <LocationPicker value={place} onChange={setPlace} />
     <label>Data<input required type="date" min={currentBrasiliaMinute().slice(0, 10)} value={form.date} onChange={(event) => setForm({ ...form, date: event.target.value })} /></label>
     <label>Horário<input required type="time" value={form.time} onChange={(event) => setForm({ ...form, time: event.target.value })} /></label>
     <label>Vagas<input required min="1" type="number" value={form.vacancies} onChange={(event) => setForm({ ...form, vacancies: event.target.value })} /></label>

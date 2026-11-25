@@ -4,11 +4,15 @@ import { participationRepository } from "../repositories/participationRepository
 import { userRepository } from "../repositories/userRepository.js";
 
 import { isUpcomingMatch } from './matchSchedule.js';
+import { parsePlace } from './place.js';
 
 export type MatchInput = {
   sport: string;
   location: string;
   address?: string | null;
+  cep?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   pricePerPerson?: number;
   notes?: string | null;
   date: string;
@@ -56,6 +60,7 @@ const parseMatchInput = (data: MatchInput) => {
     sport,
     location,
     address: data.address?.trim() || null,
+    ...parsePlace(data),
     pricePerPerson,
     notes: data.notes?.trim() || null,
     date: parsedDate,
@@ -85,6 +90,9 @@ export const matchService = {
       sport: match.sport,
       location: match.location,
       address: match.address,
+      cep: match.cep,
+      latitude: match.latitude,
+      longitude: match.longitude,
       pricePerPerson: match.pricePerPerson,
       notes: match.notes,
       organizerId: match.organizerId,
@@ -138,6 +146,9 @@ export const matchService = {
       sport: input.sport,
       location: input.location,
       address: input.address,
+      cep: input.cep,
+      latitude: input.latitude,
+      longitude: input.longitude,
       pricePerPerson: input.pricePerPerson,
       notes: input.notes,
       date: input.date,

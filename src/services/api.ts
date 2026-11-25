@@ -19,6 +19,9 @@ export type Match = {
   sport: string;
   location: string;
   address?: string | null;
+  cep?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   pricePerPerson?: number;
   notes?: string | null;
   date: string;
@@ -43,6 +46,9 @@ export type MatchInput = {
   sport: string;
   location: string;
   address?: string | null;
+  cep?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   pricePerPerson?: number;
   notes?: string | null;
   date: string;
@@ -216,6 +222,9 @@ export type TeamMatch = {
   opponent: Team | null;
   location: string;
   address: string | null;
+  cep: string | null;
+  latitude: number | null;
+  longitude: number | null;
   startsAt: string;
   playersPerSide: number;
   outdoor: boolean;
@@ -227,7 +236,7 @@ export const teamsApi = {
   matches: () => request<TeamMatch[]>('/team-matches'),
   create: (input: Pick<Team, 'name' | 'sport' | 'memberCount'>) =>
     request<Team>('/teams', { method: 'POST', body: JSON.stringify(input) }),
-  publish: (input: { teamId: string; location: string; address: string; startsAt: string; playersPerSide: number; outdoor: boolean }) =>
+  publish: (input: { teamId: string; location: string; address: string; cep: string | null; latitude: number; longitude: number; startsAt: string; playersPerSide: number; outdoor: boolean }) =>
     request<TeamMatch>('/team-matches', { method: 'POST', body: JSON.stringify(input) }),
   accept: (id: string, teamId: string) =>
     request(`/team-matches/${id}/accept`, { method: 'POST', body: JSON.stringify({ teamId }) }),

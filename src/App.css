@@ -463,3 +463,16 @@ input:hover, select:hover, textarea:hover { border-color: #9dbeb5; }
   .agenda-status { grid-column: 2; justify-self: start; }
   .agenda-row button { grid-column: 2; justify-self: start; }
 }
+
+/* Location picker and map */
+.location-picker { display: grid; gap: 12px; margin: 0; padding: 16px; border: 1px solid #cbd5e1; border-radius: 12px; min-width: 0; }
+.location-picker legend { padding: 0 6px; font: 700 14px Arial, sans-serif; }
+.location-picker label { display: grid; gap: 6px; flex: 1 1 200px; text-align: left; font: 700 14px Arial, sans-serif; }
+.location-picker input { box-sizing: border-box; width: 100%; }
+.location-row { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; }
+.location-row .button { white-space: nowrap; }
+.location-picker p { margin: 0; font: 14px/1.4 Arial, sans-serif; }
+.location-map { height: 300px; width: 100%; border-radius: 10px; border: 1px solid #cbd5e1; z-index: 0; margin-bottom: 12px; }
+.location-picker .location-map { margin-bottom: 0; }
+.map-credit { font-size: 12px !important; color: #66746d; }
+@media (max-width: 520px) { .location-map { height: 240px; } .location-row .button { width: 100%; } }

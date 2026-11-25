@@ -1,5 +1,5 @@
-// The first release forecasts outdoor confrontations in Novo Hamburgo.
-export async function getForecast(startsAt: string) {
+// Uses the confrontation's map position; older records without one fall back to Novo Hamburgo.
+export async function getForecast(startsAt: string, position?: { latitude: number; longitude: number } | null) {
   const localHour = new Date(Date.parse(startsAt) - 3 * 3600000).toISOString().slice(0, 13) + ':00';
   const date = localHour.slice(0, 10);
   const today = new Date(Date.now() - 3 * 3600000).toISOString().slice(0, 10);
@@ -7,8 +7,8 @@ export async function getForecast(startsAt: string) {
   if (daysAhead < 0 || daysAhead >= 7) return null;
 
   const query = new URLSearchParams({
-    latitude: '-29.68',
-    longitude: '-51.13',
+    latitude: String(position?.latitude ?? -29.68),
+    longitude: String(position?.longitude ?? -51.13),
     timezone: 'America/Sao_Paulo',
     hourly: 'temperature_2m,precipitation_probability',
     start_date: date,

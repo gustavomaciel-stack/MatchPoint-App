@@ -9,7 +9,7 @@ export const teamRepository = {
     prisma.team.create({ data }),
   matches: () => prisma.teamMatch.findMany({ where: { startsAt: { gt: new Date() } }, include: teams, orderBy: { startsAt: 'asc' } }),
   match: (id: string) => prisma.teamMatch.findUnique({ where: { id }, include: teams }),
-  publish: (data: { hostId: string; location: string; address: string; startsAt: Date; playersPerSide: number; outdoor: boolean }) =>
+  publish: (data: { hostId: string; location: string; address: string; cep: string | null; latitude: number | null; longitude: number | null; startsAt: Date; playersPerSide: number; outdoor: boolean }) =>
     prisma.teamMatch.create({ data }),
   accept: (id: string, opponentId: string) => prisma.teamMatch.updateMany({
     where: { id, opponentId: null, cancelled: false, startsAt: { gt: new Date() } },

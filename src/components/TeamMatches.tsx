@@ -5,19 +5,24 @@ import { teamsApi } from '../services/api';
 import type { Team, TeamMatch } from '../services/api';
 import { currentBrasiliaMinute, isFutureBrasiliaTime } from '../data/matchSchedule';
 import { getForecast } from '../services/weather';
+import { mapsUrl, type Coordinates } from '../services/geo';
+import { LocationPicker, hasPin, type PlaceValue } from './LocationPicker';
+import { LocationMap } from './LocationMap';
+
+const EMPTY_PLACE: PlaceValue = { address: '', cep: '', latitude: null, longitude: null };
 
 const dateTime = new Intl.DateTimeFormat('pt-BR', {
   dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Sao_Paulo',
 });
 
-function Forecast({ startsAt }: { startsAt: string }) {
+function Forecast({ startsAt, position }: { startsAt: string; position: Coordinates | null }) {
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
   async function load() {
     setLoading(true);
     try {
-      const forecast = await getForecast(startsAt);
+      const forecast = await getForecast(startsAt, position);
       setMessage(forecast
         ? `${forecast.temperature.toLocaleString('pt-BR')} °C · ${forecast.rain}% de chance de chuva`
         : 'Sem previsão para esse horário. A consulta cobre hoje e os próximos seis dias.');
@@ -41,6 +46,7 @@ export function TeamMatches({ userId, mode, matchId }: { userId: string; mode: '
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState<'team' | 'match'>();
+  const [place, setPlace] = useState<PlaceValue>(EMPTY_PLACE);
 
 
   async function refresh() {
@@ -74,12 +80,17 @@ export function TeamMatches({ userId, mode, matchId }: { userId: string; mode: '
       setError('Informe uma data e hora futura válida.');
       return;
     }
+    if (form === 'match' && !hasPin(place)) {
+      setError('Marque o local do confronto no mapa para continuar.');
+      return;
+    }
     void run(() => form === 'team'
       ? teamsApi.create({ name: value('name'), sport: value('sport'), memberCount: Number(value('memberCount')) })
       : teamsApi.publish({
-        teamId: value('teamId'), location: value('location'), address: value('address'), startsAt: value('startsAt'),
+        teamId: value('teamId'), location: value('location'), address: place.address, cep: place.cep || null,
+        latitude: place.latitude!, longitude: place.longitude!, startsAt: value('startsAt'),
         playersPerSide: Number(value('playersPerSide')), outdoor: fields.has('outdoor'),
-      }), () => setForm(undefined));
+      }), () => { setForm(undefined); setPlace(EMPTY_PLACE); });
   }
 
   const teams = data?.teams ?? [];
@@ -103,8 +114,8 @@ export function TeamMatches({ userId, mode, matchId }: { userId: string; mode: '
         <label>Número de integrantes<input name="memberCount" type="number" min="1" max="100" required /></label>
       </> : <>
         <label>Time<select name="teamId" required>{teams.map((team) => <option value={team.id} key={team.id}>{team.name} · {team.sport}</option>)}</select></label>
-        <label>Local em Novo Hamburgo<input name="location" maxLength={300} required /></label>
-        <label>Endereço<input name="address" maxLength={300} placeholder="Rua, número, bairro, cidade e estado" required /></label>
+        <label>Nome do local<input name="location" maxLength={300} placeholder="Ex.: Ginásio do bairro" required /></label>
+        <LocationPicker value={place} onChange={setPlace} addressRequired />
         <label>Data e hora de Brasília<input name="startsAt" type="datetime-local" min={currentBrasiliaMinute()} required /></label>
         <label>Jogadores por lado<input name="playersPerSide" type="number" min="1" max="100" required /></label>
         <label className="team-check"><input name="outdoor" type="checkbox" /> Ao ar livre</label>
@@ -127,6 +138,7 @@ export function TeamMatches({ userId, mode, matchId }: { userId: string; mode: '
         const own = match.host.ownerId === userId;
         const available = !match.cancelled && !expired && !match.opponent;
         const eligible = teams.filter((team) => team.sport === match.host.sport && team.memberCount >= match.playersPerSide);
+        const position = match.latitude != null && match.longitude != null ? { latitude: match.latitude, longitude: match.longitude } : null;
         const status = match.cancelled ? 'Cancelado' : expired ? 'Horário encerrado' : match.opponent ? 'Confronto confirmado' : 'Buscando adversário';
 
         return <article key={match.id} className="team-card">
@@ -134,8 +146,9 @@ export function TeamMatches({ userId, mode, matchId }: { userId: string; mode: '
           <p><strong>{status}</strong> · {match.host.sport} · {match.playersPerSide} × {match.playersPerSide}</p>
           <p>{dateTime.format(new Date(match.startsAt))} · {match.location}</p>
           {match.address && <p>{match.address}</p>}
-          <div><a className="button secondary" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(match.address || `${match.location}, Novo Hamburgo`)}`} target="_blank" rel="noopener noreferrer">Abrir no Google Maps</a></div>
-          {match.outdoor && !match.cancelled && !expired && <Forecast startsAt={match.startsAt} />}
+          {position && mode === 'detail' && <LocationMap position={position} label={`Mapa de ${match.location}`} />}
+          <div><a className="button secondary" href={mapsUrl(match.address || position ? match : { ...match, location: `${match.location}, Novo Hamburgo` })} target="_blank" rel="noopener noreferrer">Abrir no Google Maps</a></div>
+          {match.outdoor && !match.cancelled && !expired && <Forecast startsAt={match.startsAt} position={position} />}
           {available && !own && (eligible.length ? <form className="team-actions" onSubmit={(event) => {
             event.preventDefault();
             const teamId = String(new FormData(event.currentTarget).get('opponent'));

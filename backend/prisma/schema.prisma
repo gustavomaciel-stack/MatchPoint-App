@@ -41,6 +41,9 @@ model Match {
   id            String           @id @default(cuid())
   sport         String
   address       String?
+  cep           String?
+  latitude      Float?
+  longitude     Float?
   pricePerPerson Int @default(0) // centavos
   notes         String?
   location      String
@@ -92,6 +95,9 @@ model TeamMatch {
   opponent       Team? @relation("Opponent", fields: [opponentId], references: [id], onDelete: Cascade)
   location       String
   address        String?
+  cep            String?
+  latitude       Float?
+  longitude      Float?
   startsAt       DateTime
   playersPerSide Int
   outdoor        Boolean @default(false)

@@ -9,6 +9,8 @@ import {
   type Match,
 } from '../services/api';
 import { useCurrentUser } from '../context/CurrentUserContext';
+import { LocationMap } from './LocationMap';
+import { mapsUrl } from '../services/geo';
 
 type Props = {
   id: string;
@@ -105,7 +107,8 @@ export function MatchDetail({ id, onBack, onEdit }: Props) {
 
       <div className="detail-panel">
         {match.address && <p><strong>Endereço:</strong> {match.address}</p>}
-        <p><a className="button secondary" href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(match.address || match.location)}`} target="_blank" rel="noopener noreferrer">Abrir no Google Maps</a></p>
+        {match.latitude != null && match.longitude != null && <LocationMap position={{ latitude: match.latitude, longitude: match.longitude }} label={`Mapa de ${match.location}`} />}
+        <p><a className="button secondary" href={mapsUrl(match)} target="_blank" rel="noopener noreferrer">Abrir no Google Maps</a></p>
         <p><strong>Valor por pessoa:</strong> {match.pricePerPerson ? (match.pricePerPerson / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'Grátis'}</p>
         {Boolean(match.pricePerPerson) && <p className="muted">Pagamento combinado com o organizador.</p>}
         {match.notes && <p style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}><strong>Observações:</strong> {match.notes}</p>}
