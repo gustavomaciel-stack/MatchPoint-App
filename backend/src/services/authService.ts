@@ -1,18 +1,19 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { env } from '../config/env.js';
 import { AppError } from '../errors/AppError.js';
 import { userRepository } from '../repositories/userRepository.js';
 
 type LoginInput = {
-  email?: string;
-  password?: string;
+  email?: unknown;
+  password?: unknown;
 };
 
 export const authService = {
   login: async (data: LoginInput = {}) => {
     const { email, password } = data;
 
-    if (!email || !password) {
+    if (typeof email !== 'string' || typeof password !== 'string' || !email || !password) {
       throw new AppError('E-mail ou senha inválidos.', 401);
     }
 
@@ -26,15 +27,10 @@ export const authService = {
       throw new AppError('E-mail ou senha inválidos.', 401);
     }
 
-    const jwtSecret = process.env.JWT_SECRET;
-    if (!jwtSecret) {
-      throw new AppError('Configuração de autenticação indisponível.', 500);
-    }
-
     const token = jwt.sign(
       { userId: user.id, role: user.role },
-      jwtSecret,
-      { expiresIn: '1h' },
+      env.jwtSecret,
+      { algorithm: 'HS256', expiresIn: '7d' },
     );
 
     return {

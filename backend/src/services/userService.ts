@@ -3,20 +3,32 @@ import { userRepository } from '../repositories/userRepository.js';
 import { AppError } from '../errors/AppError.js';
 
 const SALT_ROUNDS = 10;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const userService = {
-  register: async (data: { name: string; email: string; password: string }) => {
+  register: async (data: { name?: unknown; email?: unknown; password?: unknown } = {}) => {
     const { name, email, password } = data;
 
-    if (!name || !email || !password) {
+    if (
+      typeof name !== 'string' || typeof email !== 'string' || typeof password !== 'string'
+      || !name.trim() || !email.trim() || !password
+    ) {
       throw new AppError('Nome, e-mail e senha são obrigatórios.', 400);
     }
 
-    if (password.length < 6) {
-      throw new AppError('A senha deve ter pelo menos 6 caracteres.', 400);
+    if (name.trim().length > 100) {
+      throw new AppError('O nome deve ter até 100 caracteres.', 400);
     }
 
     const normalizedEmail = email.trim().toLowerCase();
+    if (normalizedEmail.length > 254 || !EMAIL_PATTERN.test(normalizedEmail)) {
+      throw new AppError('Informe um e-mail válido.', 400);
+    }
+
+    if (password.length < 6 || password.length > 72) {
+      throw new AppError('A senha deve ter entre 6 e 72 caracteres.', 400);
+    }
+
     const existing = await userRepository.findByEmail(normalizedEmail);
     if (existing) {
       throw new AppError('Já existe um usuário com este e-mail.', 409);

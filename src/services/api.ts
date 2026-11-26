@@ -1,4 +1,7 @@
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3001";
+const API_URL =
+  import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? "http://localhost:3001" : "");
+
+const REQUEST_TIMEOUT_MS = 60000;
 
 export const TOKEN_STORAGE_KEY = "matchpoint_token";
 
@@ -29,16 +32,17 @@ export type Match = {
   vacancies: number;
   status: MatchStatus;
   organizerId: string;
-  organizer: User;
+  organizer: PersonRef;
   confirmedParticipants?: number;
+  joined?: boolean;
   participants?: Participant[];
   createdAt: string;
   updatedAt: string;
 };
 
 export type Participant = {
+  id: string;
   name: string;
-  email: string;
   createdAt?: string;
 };
 
@@ -58,16 +62,30 @@ export type MatchInput = {
 };
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  if (!API_URL) {
+    throw new Error("A URL da API não foi configurada (VITE_API_URL).");
+  }
+
   const token = localStorage.getItem(TOKEN_STORAGE_KEY);
 
-  const response = await fetch(`${API_URL}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...options?.headers,
-    },
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}${path}`, {
+      ...options,
+      signal: options?.signal ?? AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...options?.headers,
+      },
+    });
+  } catch (error) {
+    throw new Error(
+      error instanceof DOMException && error.name === "TimeoutError"
+        ? "O servidor demorou demais para responder. Tente novamente."
+        : "Não foi possível conectar ao servidor. Verifique sua conexão e tente novamente.",
+    );
+  }
 
   const body = (await response.json().catch(() => null)) as
     | { message?: string }
@@ -139,10 +157,6 @@ export function listUsers() {
   return request<User[]>("/users");
 }
 
-export function getUser(id: string) {
-  return request<User>(`/users/${id}`);
-}
-
 export function listMyMatches() {
   return request<Match[]>('/matches/mine');
 }
@@ -172,10 +186,9 @@ export function updateMatch(
   });
 }
 
-export function cancelMatch(id: string, organizerId: string) {
+export function cancelMatch(id: string) {
   return request<Match>(`/matches/${id}/cancel`, {
     method: "PATCH",
-    body: JSON.stringify({ organizerId }),
   });
 }
 
@@ -191,17 +204,15 @@ export function deleteUser(id: string) {
   });
 }
 
-export function joinMatch(id: string, userId: string) {
+export function joinMatch(id: string) {
   return request(`/matches/${id}/join`, {
     method: "POST",
-    body: JSON.stringify({ userId }),
   });
 }
 
-export function leaveMatch(id: string, userId: string) {
+export function leaveMatch(id: string) {
   return request(`/matches/${id}/leave`, {
     method: "POST",
-    body: JSON.stringify({ userId }),
   });
 }
 
@@ -229,10 +240,35 @@ export type TeamMatch = {
   playersPerSide: number;
   outdoor: boolean;
   cancelled: boolean;
+  involved: boolean;
+};
+
+export type MembershipStatus = 'PENDENTE' | 'APROVADA' | 'RECUSADA';
+
+export type PersonRef = { id: string; name: string };
+
+export type TeamOverview = {
+  id: string;
+  name: string;
+  sport: string;
+  memberCount: number;
+  owner: PersonRef;
+  members: (PersonRef & { membershipId: string })[];
+  myStatus: MembershipStatus | 'DONO' | null;
+  myMembershipId: string | null;
+  canManage: boolean;
+  requests: { id: string; createdAt: string; user: PersonRef }[];
 };
 
 export const teamsApi = {
   mine: () => request<Team[]>('/teams'),
+  explore: () => request<TeamOverview[]>('/teams/explore'),
+  requestJoin: (teamId: string) =>
+    request<{ id: string; status: MembershipStatus }>(`/teams/${teamId}/requests`, { method: 'POST' }),
+  decide: (membershipId: string, status: 'APROVADA' | 'RECUSADA') =>
+    request(`/team-requests/${membershipId}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+  removeMembership: (membershipId: string) =>
+    request(`/team-requests/${membershipId}`, { method: 'DELETE' }),
   matches: () => request<TeamMatch[]>('/team-matches'),
   create: (input: Pick<Team, 'name' | 'sport' | 'memberCount'>) =>
     request<Team>('/teams', { method: 'POST', body: JSON.stringify(input) }),
@@ -241,4 +277,90 @@ export const teamsApi = {
   accept: (id: string, teamId: string) =>
     request(`/team-matches/${id}/accept`, { method: 'POST', body: JSON.stringify({ teamId }) }),
   cancel: (id: string) => request(`/team-matches/${id}/cancel`, { method: 'PATCH' }),
+};
+
+export type Badge = {
+  id: string;
+  name: string;
+  icon: string;
+  description: string;
+  earned: boolean;
+  progress: { current: number; target: number };
+};
+
+export type Gamification = {
+  xp: number;
+  level: {
+    number: number;
+    name: string;
+    minXp: number;
+    nextXp: number | null;
+    nextName: string | null;
+    progress: number;
+  };
+  badges: Badge[];
+  stats: {
+    organized: number;
+    participations: number;
+    teamGames: number;
+    sports: number;
+    teamsOwned: number;
+    teamsJoined: number;
+    ratingCount: number;
+    ratingAverage: number | null;
+  };
+};
+
+export type HistoryEntry = {
+  kind: 'match' | 'team';
+  id: string;
+  title: string;
+  location: string;
+  startsAt: string;
+  role: string;
+  detail: string | null;
+};
+
+export type RatingItem = {
+  id: string;
+  score: number;
+  comment: string | null;
+  createdAt: string;
+  updatedAt: string;
+  rater: PersonRef;
+};
+
+export type Profile = {
+  user: { id: string; name: string; role: UserRole; createdAt: string; email: string | null };
+  isSelf: boolean;
+  gamification: Gamification;
+  history: HistoryEntry[];
+  ratings: {
+    average: number | null;
+    count: number;
+    items: RatingItem[];
+    mine: { score: number; comment: string | null } | null;
+    canRate: boolean;
+  };
+};
+
+export type RankingEntry = {
+  position: number;
+  id: string;
+  name: string;
+  xp: number;
+  level: number;
+  levelName: string;
+  badges: Pick<Badge, 'id' | 'name' | 'icon'>[];
+};
+
+export const profileApi = {
+  get: (userId: string) => request<Profile>(`/users/${userId}/profile`),
+  rate: (userId: string, score: number, comment: string) =>
+    request<{ score: number; comment: string | null }>(`/users/${userId}/rating`, {
+      method: 'PUT',
+      body: JSON.stringify({ score, comment }),
+    }),
+  unrate: (userId: string) => request(`/users/${userId}/rating`, { method: 'DELETE' }),
+  ranking: () => request<{ top: RankingEntry[]; me: RankingEntry | null }>('/ranking'),
 };

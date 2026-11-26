@@ -24,6 +24,12 @@ enum Role {
   ADMIN
 }
 
+enum TeamMembershipStatus {
+  PENDENTE
+  APROVADA
+  RECUSADA
+}
+
 model User {
   id           String          @id @default(cuid())
   name         String
@@ -35,6 +41,9 @@ model User {
   matches      Match[]
   teams        Team[]
   participations Participation[]
+  memberships  TeamMembership[]
+  ratingsGiven    Rating[]     @relation("RatingsGiven")
+  ratingsReceived Rating[]     @relation("RatingsReceived")
 }
 
 model Match {
@@ -83,8 +92,38 @@ model Team {
   owner       User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   hosted      TeamMatch[] @relation("Host")
   accepted    TeamMatch[] @relation("Opponent")
+  memberships TeamMembership[]
 
   @@unique([ownerId, sport, name])
+}
+
+model TeamMembership {
+  id        String               @id @default(cuid())
+  teamId    String
+  userId    String
+  status    TeamMembershipStatus @default(PENDENTE)
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+  team      Team                 @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user      User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
+  @@index([userId])
+}
+
+model Rating {
+  id        String   @id @default(cuid())
+  raterId   String
+  rateeId   String
+  score     Int
+  comment   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  rater     User     @relation("RatingsGiven", fields: [raterId], references: [id], onDelete: Cascade)
+  ratee     User     @relation("RatingsReceived", fields: [rateeId], references: [id], onDelete: Cascade)
+
+  @@unique([raterId, rateeId])
+  @@index([rateeId])
 }
 
 model TeamMatch {

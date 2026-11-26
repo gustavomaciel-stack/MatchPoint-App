@@ -7,14 +7,14 @@ import { authMiddleware } from '../middlewares/auth.js';
 const router = Router();
 
 router.post('/matches', authMiddleware, matchController.create);
-router.get('/matches', matchController.list);
+router.get('/matches', authMiddleware, matchController.list);
 router.get('/matches/mine', authMiddleware, matchController.mine);
-router.get('/matches/:id', matchController.getById);
+router.get('/matches/:id', authMiddleware, matchController.getById);
 router.put('/matches/:id', authMiddleware, matchController.update);
 router.patch('/matches/:id/cancel', authMiddleware, matchController.cancel);
 router.delete('/matches/:id', authMiddleware, adminOnly, matchController.remove);
 router.post('/matches/:id/join', authMiddleware, participationController.join);
 router.post('/matches/:id/leave', authMiddleware, participationController.leave);
-router.get('/matches/:id/participants', participationController.list);
+router.get('/matches/:id/participants', authMiddleware, participationController.list);
 
 export default router;

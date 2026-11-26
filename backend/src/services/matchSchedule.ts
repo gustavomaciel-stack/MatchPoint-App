@@ -7,7 +7,20 @@ export function parseBrasiliaStart(local: string): Date | null {
   return start;
 }
 
+export function startOfBrasiliaToday(now = Date.now()): Date {
+  return new Date(new Date(now - 10800000).toISOString().slice(0, 10));
+}
+
+export function matchStart(match: { date: Date; time: string }): Date | null {
+  return parseBrasiliaStart(`${match.date.toISOString().slice(0, 10)}T${match.time}`);
+}
+
 export function isUpcomingMatch(match: { date: Date; time: string }, now = Date.now()): boolean {
-  const start = parseBrasiliaStart(`${match.date.toISOString().slice(0, 10)}T${match.time}`);
+  const start = matchStart(match);
   return start !== null && +start > now;
+}
+
+export function isPastMatch(match: { date: Date; time: string }, now = Date.now()): boolean {
+  const start = matchStart(match);
+  return start !== null && +start <= now;
 }

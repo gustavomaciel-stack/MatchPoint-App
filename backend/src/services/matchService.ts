@@ -3,38 +3,32 @@ import { matchRepository } from "../repositories/matchRepository.js";
 import { participationRepository } from "../repositories/participationRepository.js";
 import { userRepository } from "../repositories/userRepository.js";
 
-import { isUpcomingMatch } from './matchSchedule.js';
+import { isUpcomingMatch, startOfBrasiliaToday } from './matchSchedule.js';
 import { parsePlace } from './place.js';
 
+const MAX_VACANCIES = 1000;
+
 export type MatchInput = {
-  sport: string;
-  location: string;
-  address?: string | null;
-  cep?: string | null;
-  latitude?: number | null;
-  longitude?: number | null;
-  pricePerPerson?: number;
-  notes?: string | null;
-  date: string;
-  time: string;
-  vacancies: number;
+  sport?: unknown;
+  location?: unknown;
+  address?: unknown;
+  cep?: unknown;
+  latitude?: unknown;
+  longitude?: unknown;
+  pricePerPerson?: unknown;
+  notes?: unknown;
+  date?: unknown;
+  time?: unknown;
+  vacancies?: unknown;
   organizerId: string;
 };
 
+const trimmed = (value: unknown) => (typeof value === "string" ? value.trim() : "");
+
 const parseMatchInput = (data: MatchInput) => {
-  const { sport, location, date, time, vacancies, organizerId } = data;
-  if (data.address != null && (typeof data.address !== "string" || data.address.length > 300)) {
-    throw new AppError("Informe um endereço com até 300 caracteres.", 400);
-  }
-  const pricePerPerson = data.pricePerPerson ?? 0;
-  if (!Number.isSafeInteger(pricePerPerson) || pricePerPerson < 0 || pricePerPerson > 100000000) {
-    throw new AppError("Informe um valor por pessoa válido.", 400);
-  }
-  if (data.notes != null && (typeof data.notes !== "string" || data.notes.length > 2000)) {
-    throw new AppError("As observações devem ter até 2000 caracteres.", 400);
-  }
-  const parsedVacancies = Number(vacancies);
-  const parsedDate = new Date(date);
+  const { date, time, organizerId } = data;
+  const sport = trimmed(data.sport);
+  const location = trimmed(data.location);
 
   if (!sport || !location || !date || !time || !organizerId) {
     throw new AppError(
@@ -42,27 +36,46 @@ const parseMatchInput = (data: MatchInput) => {
       400,
     );
   }
-
-  if (!Number.isInteger(parsedVacancies) || parsedVacancies <= 0) {
-    throw new AppError("A quantidade de vagas deve ser maior que zero.", 400);
+  if (sport.length > 80) {
+    throw new AppError("O esporte deve ter até 80 caracteres.", 400);
+  }
+  if (location.length > 300) {
+    throw new AppError("O nome do local deve ter até 300 caracteres.", 400);
+  }
+  if (data.address != null && (typeof data.address !== "string" || data.address.length > 300)) {
+    throw new AppError("Informe um endereço com até 300 caracteres.", 400);
+  }
+  const pricePerPerson = data.pricePerPerson ?? 0;
+  if (typeof pricePerPerson !== "number" || !Number.isSafeInteger(pricePerPerson)
+    || pricePerPerson < 0 || pricePerPerson > 100000000) {
+    throw new AppError("Informe um valor por pessoa válido.", 400);
+  }
+  if (data.notes != null && (typeof data.notes !== "string" || data.notes.length > 2000)) {
+    throw new AppError("As observações devem ter até 2000 caracteres.", 400);
   }
 
+  const parsedVacancies = Number(data.vacancies);
+  if (!Number.isInteger(parsedVacancies) || parsedVacancies <= 0 || parsedVacancies > MAX_VACANCIES) {
+    throw new AppError(`A quantidade de vagas deve estar entre 1 e ${MAX_VACANCIES}.`, 400);
+  }
+
+  const parsedDate = new Date(String(date));
   if (typeof date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(date)
     || Number.isNaN(+parsedDate) || parsedDate.toISOString().slice(0, 10) !== date) {
     throw new AppError("A data da partida é inválida.", 400);
   }
 
-  if (!isUpcomingMatch({ date: parsedDate, time })) {
+  if (typeof time !== "string" || !isUpcomingMatch({ date: parsedDate, time })) {
     throw new AppError("Informe uma data e hora futura válida.", 400);
   }
 
   return {
     sport,
     location,
-    address: data.address?.trim() || null,
+    address: typeof data.address === "string" ? data.address.trim() || null : null,
     ...parsePlace(data),
     pricePerPerson,
-    notes: data.notes?.trim() || null,
+    notes: typeof data.notes === "string" ? data.notes.trim() || null : null,
     date: parsedDate,
     time,
     vacancies: parsedVacancies,
@@ -82,8 +95,8 @@ export const matchService = {
     return matchRepository.create(input);
   },
 
-  list: async (userId?: string) => {
-    const matches = await matchRepository.findAll(userId);
+  list: async (viewerId: string, onlyInvolved = false) => {
+    const matches = await matchRepository.findAll(startOfBrasiliaToday(), viewerId, onlyInvolved);
     const now = Date.now();
     return matches.filter((match) => isUpcomingMatch(match, now)).map((match) => ({
       id: match.id,
@@ -102,6 +115,7 @@ export const matchService = {
       status: match.status,
       organizer: match.organizer,
       confirmedParticipants: match._count.participations,
+      joined: match.participations.length > 0,
       createdAt: match.createdAt,
       updatedAt: match.updatedAt,
     }));
@@ -133,28 +147,19 @@ export const matchService = {
       throw new AppError("Esta partida não pode mais ser editada.", 400);
     }
 
-    const input = parseMatchInput(data);
-    const confirmed = await matchRepository.countConfirmedParticipants(id);
-    if (input.vacancies < confirmed) {
+    const { organizerId: _organizerId, ...input } = parseMatchInput(data);
+    const result = await matchRepository.updateWithCapacity(id, input);
+
+    if ("error" in result) {
       throw new AppError(
-        "As vagas não podem ser menores que os participantes confirmados.",
+        result.error === "closed"
+          ? "Esta partida não pode mais ser editada."
+          : "As vagas não podem ser menores que os participantes confirmados.",
         400,
       );
     }
 
-    return matchRepository.update(id, {
-      sport: input.sport,
-      location: input.location,
-      address: input.address,
-      cep: input.cep,
-      latitude: input.latitude,
-      longitude: input.longitude,
-      pricePerPerson: input.pricePerPerson,
-      notes: input.notes,
-      date: input.date,
-      time: input.time,
-      vacancies: input.vacancies,
-    });
+    return result.match;
   },
 
   cancel: async (id: string, organizerId: string) => {
