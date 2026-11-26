@@ -11,7 +11,11 @@ const authenticated = (handler: (req: Request, res: Response) => Promise<Respons
   }] as const;
 
 router.get('/teams', ...authenticated(teamController.list));
+router.get('/teams/explore', ...authenticated(teamController.explore));
 router.post('/teams', ...authenticated(teamController.create));
+router.post('/teams/:id/requests', ...authenticated(teamController.requestJoin));
+router.patch('/team-requests/:id', ...authenticated(teamController.decideRequest));
+router.delete('/team-requests/:id', ...authenticated(teamController.removeMembership));
 router.get('/team-matches', ...authenticated(teamController.matches));
 router.post('/team-matches', ...authenticated(teamController.publish));
 router.post('/team-matches/:id/accept', ...authenticated(teamController.accept));

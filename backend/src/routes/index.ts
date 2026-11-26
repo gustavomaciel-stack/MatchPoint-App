@@ -4,11 +4,13 @@ import healthRoutes from "./health.routes.js";
 import matchRoutes from "./match.routes.js";
 import userRoutes from "./user.routes.js";
 import teamRoutes from "./team.routes.js";
+import profileRoutes from "./profile.routes.js";
 
 const router = Router();
 
 router.use(authRoutes);
 router.use(healthRoutes);
+router.use(profileRoutes);
 router.use(userRoutes);
 router.use(matchRoutes);
 router.use(teamRoutes);

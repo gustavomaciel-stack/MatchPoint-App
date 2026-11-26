@@ -1,58 +1,48 @@
 import { AppError } from '../errors/AppError.js';
 import { matchRepository } from '../repositories/matchRepository.js';
 import { participationRepository } from '../repositories/participationRepository.js';
-import { userRepository } from '../repositories/userRepository.js';
 
 import { isUpcomingMatch } from './matchSchedule.js';
+
+const JOIN_ERRORS = {
+  closed: ['A partida não está aberta para participação.', 400],
+  'already-joined': ['Usuário já participa desta partida.', 409],
+  full: ['Não há vagas disponíveis nesta partida.', 409],
+} as const;
 
 export const participationService = {
   join: async (matchId: string, userId: string) => {
     const match = await matchRepository.findById(matchId);
     if (!match) throw new AppError('Partida não encontrada.', 404);
-    if (!isUpcomingMatch(match) || match.status !== 'ABERTA') {
+    if (!isUpcomingMatch(match)) {
       throw new AppError('A partida não está aberta para participação.', 400);
     }
-
-    const user = await userRepository.findById(userId);
-    if (!user) throw new AppError('Usuário não encontrado.', 404);
-
-    const existing = await participationRepository.findByMatchAndUser(matchId, userId);
-    if (existing?.status === 'CONFIRMADA') {
-      throw new AppError('Usuário já participa desta partida.', 409);
+    if (match.organizerId === userId) {
+      throw new AppError('Você organiza esta partida e já faz parte dela.', 400);
     }
 
-    const confirmed = await matchRepository.countConfirmedParticipants(matchId);
-    if (confirmed >= match.vacancies) {
-      throw new AppError('Não há vagas disponíveis nesta partida.', 409);
+    const result = await participationRepository.join(matchId, userId);
+    if (result.error) {
+      const [message, status] = JOIN_ERRORS[result.error];
+      throw new AppError(message, status);
     }
 
-    const participation = existing
-      ? await participationRepository.reactivate(existing.id)
-      : await participationRepository.create(matchId, userId);
-    const newCount = confirmed + 1;
-
-    if (newCount >= match.vacancies) {
-      await matchRepository.updateStatus(matchId, 'COMPLETA');
-    }
-
-    return participation;
+    return result.participation;
   },
 
   leave: async (matchId: string, userId: string) => {
     const match = await matchRepository.findById(matchId);
     if (!match) throw new AppError('Partida não encontrada.', 404);
+    if (!isUpcomingMatch(match)) {
+      throw new AppError('A partida já aconteceu e faz parte do histórico.', 400);
+    }
 
-    const participation = await participationRepository.findByMatchAndUser(matchId, userId);
-    if (!participation || participation.status !== 'CONFIRMADA') {
+    const result = await participationRepository.leave(matchId, userId);
+    if ('error' in result) {
       throw new AppError('Participação confirmada não encontrada.', 404);
     }
 
-    const result = await participationRepository.cancel(participation.id);
-    if (match.status === 'COMPLETA') {
-      await matchRepository.updateStatus(matchId, 'ABERTA');
-    }
-
-    return result;
+    return result.participation;
   },
 
   listByMatch: async (matchId: string) => {
@@ -61,8 +51,8 @@ export const participationService = {
 
     const participants = await participationRepository.findConfirmedByMatch(matchId);
     return participants.map((participation) => ({
+      id: participation.user.id,
       name: participation.user.name,
-      email: participation.user.email,
       createdAt: participation.createdAt,
     }));
   },

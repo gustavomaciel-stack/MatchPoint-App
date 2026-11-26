@@ -1,6 +1,7 @@
 import { parseBrasiliaStart } from './matchSchedule.js';
 import { Prisma } from '@prisma/client';
 import { AppError } from '../errors/AppError.js';
+import { membershipRepository } from '../repositories/membershipRepository.js';
 import { teamRepository } from '../repositories/teamRepository.js';
 import { parsePlace } from './place.js';
 
@@ -24,9 +25,102 @@ async function ownedTeam(value: unknown, ownerId: string) {
   return team;
 }
 
+type Actor = { userId: string; role: 'USER' | 'ADMIN' };
+
+type TeamWithViewer = {
+  ownerId: string;
+  memberships: { id: string }[];
+};
+
+const isOnSide = (team: TeamWithViewer | null, userId: string) =>
+  Boolean(team && (team.ownerId === userId || team.memberships.length > 0));
+
+const withoutMemberships = <T extends { memberships: unknown }>({ memberships: _memberships, ...team }: T) => team;
+
 export const teamService = {
   list: (ownerId: string) => teamRepository.mine(ownerId),
-  matches: () => teamRepository.matches(),
+  async matches(userId: string) {
+    const matches = await teamRepository.matches(userId);
+    return matches.map(({ host, opponent, ...match }) => ({
+      ...match,
+      host: withoutMemberships(host),
+      opponent: opponent ? withoutMemberships(opponent) : null,
+      involved: isOnSide(host, userId) || isOnSide(opponent, userId),
+    }));
+  },
+  async explore(actor: Actor) {
+    const teams = await membershipRepository.explore();
+    return teams.map(({ memberships, ...team }) => {
+      const isOwner = team.ownerId === actor.userId;
+      const canManage = isOwner || actor.role === 'ADMIN';
+      const mine = memberships.find((membership) => membership.user.id === actor.userId);
+      return {
+        id: team.id,
+        name: team.name,
+        sport: team.sport,
+        memberCount: team.memberCount,
+        owner: team.owner,
+        members: memberships
+          .filter((membership) => membership.status === 'APROVADA')
+          .map((membership) => ({ membershipId: membership.id, ...membership.user })),
+        myStatus: isOwner ? 'DONO' : mine?.status ?? null,
+        myMembershipId: mine?.id ?? null,
+        canManage,
+        requests: canManage
+          ? memberships
+            .filter((membership) => membership.status === 'PENDENTE')
+            .map((membership) => ({ id: membership.id, createdAt: membership.createdAt, user: membership.user }))
+          : [],
+      };
+    });
+  },
+  async requestJoin(userId: string, teamId: string) {
+    const team = await teamRepository.find(teamId);
+    if (!team) throw new AppError('Time não encontrado.', 404);
+    if (team.ownerId === userId) throw new AppError('Você já é o responsável por este time.', 400);
+
+    const existing = await membershipRepository.findByTeamAndUser(teamId, userId);
+    if (existing?.status === 'PENDENTE') throw new AppError('Sua solicitação já está aguardando aprovação.', 409);
+    if (existing?.status === 'APROVADA') throw new AppError('Você já faz parte deste time.', 409);
+    if (existing) {
+      const reopened = await membershipRepository.reopen(existing.id);
+      if (!reopened.count) throw new AppError('Sua solicitação já foi atualizada. Recarregue a página.', 409);
+      return { id: existing.id, status: 'PENDENTE' as const };
+    }
+
+    try {
+      const created = await membershipRepository.create(teamId, userId);
+      return { id: created.id, status: created.status };
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new AppError('Sua solicitação já foi enviada.', 409);
+      }
+      throw error;
+    }
+  },
+  async decideRequest(actor: Actor, id: string, decision: unknown) {
+    if (decision !== 'APROVADA' && decision !== 'RECUSADA') {
+      throw new AppError('Informe se a solicitação foi aprovada ou recusada.', 400);
+    }
+    const membership = await membershipRepository.find(id);
+    if (!membership) throw new AppError('Solicitação não encontrada.', 404);
+    if (membership.team.ownerId !== actor.userId && actor.role !== 'ADMIN') {
+      throw new AppError('Apenas o responsável pelo time pode responder a esta solicitação.', 403);
+    }
+    const result = await membershipRepository.decide(id, decision);
+    if (!result.count) throw new AppError('Esta solicitação já foi respondida.', 409);
+    return { id, status: decision };
+  },
+  async removeMembership(actor: Actor, id: string) {
+    const membership = await membershipRepository.find(id);
+    if (!membership) throw new AppError('Solicitação não encontrada.', 404);
+    const allowed = membership.userId === actor.userId
+      || membership.team.ownerId === actor.userId
+      || actor.role === 'ADMIN';
+    if (!allowed) throw new AppError('Acesso negado.', 403);
+    await membershipRepository.remove(id);
+    return { deleted: true };
+  },
   async create(ownerId: string, body: Record<string, unknown>) {
     try {
       return await teamRepository.create({
